@@ -1,0 +1,107 @@
+---
+title: "Machine Learning Course- Project submission"
+output: html_document
+---
+
+###Problem Description
+Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement ??? a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.p-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+Data 
+
+The training data for this project are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. 
+
+What you should submit
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. 
+
+###Data Preparations
+```{r}
+##Load the libraries
+library(caret)
+library(e1071)
+library(randomForest)
+
+```
+Select only columns that has values in the Test(20 rows) dataset and apply that to the training dataset to get rid of unimpactful columns on the final model. 
+```{r, echo = TRUE}
+## Read the training data
+trainDS <- read.csv("pml-training.csv", sep = ",")
+## 
+colnames <- c("user_name", "new_window", "num_window", "roll_belt", "pitch_belt", "yaw_belt",        
+              "total_accel_belt", "gyros_belt_x", "gyros_belt_y", "gyros_belt_z", "accel_belt_x",	
+              "accel_belt_y", "accel_belt_z", "magnet_belt_x", "magnet_belt_y",	"magnet_belt_z",	
+              "roll_arm", "pitch_arm", "yaw_arm", "total_accel_arm", "gyros_arm_x", "gyros_arm_y",	
+              "gyros_arm_z", "accel_arm_x", "accel_arm_y", "accel_arm_z", "magnet_arm_x",	
+              "magnet_arm_y", "magnet_arm_z", "roll_dumbbell", "pitch_dumbbell", "yaw_dumbbell",
+              "total_accel_dumbbell", "gyros_dumbbell_x", "gyros_dumbbell_y", "gyros_dumbbell_z",	
+              "accel_dumbbell_x", "accel_dumbbell_y", "accel_dumbbell_z", "magnet_dumbbell_x",	
+              "magnet_dumbbell_y", "magnet_dumbbell_z",	"roll_forearm", "pitch_forearm", "yaw_forearm",
+              "total_accel_forearm", "gyros_forearm_x", "gyros_forearm_y", "gyros_forearm_z", "accel_forearm_x",	
+              "accel_forearm_y", "accel_forearm_z", "magnet_forearm_x",	"magnet_forearm_y", "magnet_forearm_z", "classe")
+
+trainDS <- trainDS[colnames]
+
+```
+
+##Cross Validation
+I'm partition the above training data into two datasets namley training (75%) and testing(25%) using the caret package function. I will construct a model with the help of this training dataset and apply that to testing dataset to verify the accuracy of my model.
+```{r}
+##Set seed to reproduce the results
+set.seed(8484)
+##Create a random partitioning using the caret package
+inTrain = createDataPartition(trainDS$classe, p = 3/4)[[1]]
+## create a training dataset with 75% random data from the original dataset to build a suitable model
+training <- trainDS[inTrain,]
+## Create a testing dataset with 25% random data from the original dataset to test the model
+testing <- trainDS[-inTrain,]
+
+```
+##Model Building
+I have choosen the Random Forest method to find the right model as it works with very high accuracy when you have lot predictor variables. It takes hugh amount of time to run as the training dataset has lot of rows (around 14k) and lot of predictor variables (Around 55)
+
+```{r}
+##Fit the model using the Random Forest method of the caret package 
+modelFit <- train(classe ~ ., method = "rf", data = training)
+##Print the model details.
+print(modelFit$finalModel)
+```
+
+The order of variable importance is, list the first 20.
+```{r}
+varImp(modelFit)
+```
+##Cross Validation
+```{r}
+##Use the caret predict function to predict the testing sample.
+pred <- predict(modelFit, testing)
+##Confusion matrix data of the model for the testing data
+confusionMatrix(pred, testing$classe)
+```
+##Out of sample error
+From the above confusion matrix details, you can find that the expected out of sample error is .002 or 2%. The 95% confidence inter is 95% CI : (0.996, 0.999). 
+
+##Testing the Model with Test data
+Apply the model to the test data provided in the problem to predict the classe variable for each of the 20 observations.
+
+```{r}
+##Read the test data
+testDS <- read.csv("pml-testing.csv", sep = ",")
+##Remove the classe column variable from the colnames vector as the classe variable is not there in test dataset. 
+colnamesInTest <- colnames[!colnames %in% "classe"]
+##Subset the test data by the colnamesInTest
+testDS <- testDS[colnamesInTest]
+##Predict the classe variable for each of the 20 test data.
+predict <- predict(modelFit, testDS)
+predict
+```
+I have constructed the answer vector using the above predicted values for the classe variable and applied to the function pml_write_files provided in the submission(second part) part of the project. Loaded the 20 files into the submission project and verified that the results are correct. 
